@@ -27,7 +27,16 @@
         <field name="f_definition" type="text_en" indexed="true" stored="true"/>
         <field name="f_signature" type="string" indexed="false" stored="true"/>
 
+
+        <!--/// FOR SPELL CHECK ///-->
+        <field name="text_spell" type="text_spell" indexed="true" stored="false"/>
+
+
     </fields>
+
+    <copyField source="text" dest="text_spell"/>
+    <copyField source="f_name" dest="text_spell"/>
+    <copyField source="f_parents" dest="text_spell"/>
     
     <!-- Field to use to determine and enforce document uniqueness. 
       Unless this field is marked with required="false", it will be a required field
@@ -119,6 +128,23 @@
           <analyzer type="query">
             <tokenizer class="solr.StandardTokenizerFactory"/>
             <!--<filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt" enablePositionIncrements="true" />-->
+            <!--<filter class="solr.SynonymFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>-->
+            <filter class="solr.LowerCaseFilterFactory"/>
+          </analyzer>
+        </fieldType>
+
+        <!-- Based on text_general, for spell check -->
+        <fieldType name="text_spell" class="solr.TextField" positionIncrementGap="100">
+          <analyzer type="index">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <!-- in this example, we will only use synonyms at query time
+            <filter class="solr.SynonymFilterFactory" synonyms="index_synonyms.txt" ignoreCase="true" expand="false"/>
+            -->
+            <filter class="solr.LowerCaseFilterFactory"/>
+          </analyzer>
+          <analyzer type="query">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt" enablePositionIncrements="true" />
             <!--<filter class="solr.SynonymFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>-->
             <filter class="solr.LowerCaseFilterFactory"/>
           </analyzer>
