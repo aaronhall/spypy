@@ -172,21 +172,27 @@ class Page(object):
 
         return sections
 
-class Collection(object):
+class Corpus(object):
     def iterpages(self):
         for f in self.files:
             yield Page(f)
 
-class PythonLibraryCollection(Collection):
+class Python2LibraryCorpus(Corpus):
     @property
     def files(self):
         path = "/home/ubuntu/spypy/docs/library"
         return glob.glob(os.path.join(path, '*.htm*'))
         
-class PythonTutorialCollection(Collection):
+class Python2TutorialCorpus(Corpus):
     @property
     def files(self):
         path = "/home/ubuntu/spypy/docs/tutorial"
+        return glob.glob(os.path.join(path, '*.htm*'))
+
+class Python2HowtoCorpus(Corpus):
+    @property
+    def files(self):
+        path = "/home/ubuntu/spypy/docs/howto"
         return glob.glob(os.path.join(path, '*.htm*'))
 
 
@@ -195,49 +201,68 @@ if __name__ == "__main__":
     import sunburnt
     import time
 
+    t_start = time.time()
+
     solr = sunburnt.SolrInterface("http://localhost:8181/solr/spypy/")
 
     print "DELETING ALL DOCUMENTS FROM THE INDEX IN 5 SECONDS!"
-    #time.sleep(5)
+    time.sleep(5)
     solr.delete_all()
 
 
-    coll = PythonLibraryCollection()
+    corpuses = [
+        Python2LibraryCorpus(),
+        Python2TutorialCorpus(),
+        Python2HowtoCorpus(),
+    ]
 
-    for page in coll.iterpages():
+    doc_count = 0
 
-        for section in page.sections:
-            doc = {
-                'id': section.id,
-                'title': section.header,
-                #'parent': section.parent,
-                'text': section.text,
-                'permalink': section.permalink,
-            }
+    for corpus in corpuses:
+        for page in corpus.iterpages():
+            for section in page.sections:
+                doc = {
+                    'id': section.id,
+                    'title': section.header,
+                    #'parent': section.parent,
+                    'text': section.text,
+                    'permalink': section.permalink,
+                }
 
-            print "<Section %s>" % doc['id']
-            solr.add(doc)
+                print "<Section %s>" % doc['id']
+                solr.add(doc)
+                doc_count += 1
 
-            for func in section.funcs:
-                try:
-                    fdoc = {
-                        'id': func.id,
-                        'f_name': func.name,
-                        'f_parents': func.parents,
-                        'f_fqn': func.fqn,
-                        'f_definition': func.definition,
-                        'f_signature': func.signature,
-                    }
-                    print "  <Function %s>" % fdoc['id']
+                for func in section.funcs:
+                    try:
+                        fdoc = {
+                            'id': func.id,
+                            'f_name': func.name,
+                            #'f_parents': func.parents,
+                            'f_fqn': func.fqn,
+                            'f_definition': func.definition,
+                            'f_signature': func.signature,
+                        }
+                        print "  <Function %s>" % fdoc['id']
 
-                    solr.add(fdoc)
-                except Exception, e:
-                    print "[!!!] <EXCEPTION: %s>" % e
-                    #time.sleep(1)
+                        solr.add(fdoc)
+                        doc_count += 1
+                    except Exception, e:
+                        raise e
+                        print "  [!!!] <EXCEPTION @ %s: %s>" % (fdoc['id'], e)
+                        #time.sleep(1)
     
-    print "Committing..."
+    print "Committing...",
+    t_com_start = time.time()
     solr.commit()
+    print "Done (%s)" % (time.time() - t_com_start)
 
-    print "Done!"
+    print "Optimizing index...",
+    t_opt_start = time.time()
+    solr.optimize()
+    print "Done (%s)" % (time.time() - t_opt_start)
 
 
+    print
+    print "Indexed %s docs in %ss" % (doc_count, time.time() - t_start)
+    print
