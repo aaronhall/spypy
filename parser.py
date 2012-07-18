@@ -27,7 +27,7 @@ import sys
 import os
 import glob
 from pyquery import PyQuery
-
+import hashlib
 
 
 class Function(object):
@@ -35,17 +35,27 @@ class Function(object):
     def __init__(self, dl):
         self.dl = dl
 
+        """DEBUG!
         print "-----"
-        print self.class_name
+        print self.parents
         print self.name
-        print self.full_name
+        print self.fqn
         print self.signature
         print self.permalink
         print self.definition
+        """
+
 
     @property
-    def class_name(self):
-        return self.dl('dt tt.descclassname').text().rstrip('.')
+    def id(self):
+        h = hashlib.new('sha1')
+        h.update(("%s%s" % (self.fqn, self.definition)).encode('utf8'))
+
+        return h.hexdigest()
+
+    @property
+    def parents(self):
+        return self.dl('dt tt.descclassname').text().rstrip('.').split('.')
 
     @property
     def name(self):
@@ -56,8 +66,10 @@ class Function(object):
         return self.dl('dt').children().not_('tt, a.headerlink').text()
 
     @property
-    def full_name(self):
-        return "%s.%s" % (self.class_name, self.name)
+    def fqn(self):
+        """Fully-qualified name"""
+        #return "%s.%s" % ('.'.join(self.parents), self.name)
+        return '.'.join(self.parents + [self.name])
 
     @property
     def definition(self):
@@ -73,21 +85,33 @@ class Section(object):
         self.section = section.children().not_('.section')
 
     def __repr__(self):
-        return "%s\n%s" % (">>> %s <<<" % self.header, self.paragraphs)
+        return self.header
+        #return "%s\n%s" % (">>> %s <<<" % self.header, self.text)
+
+    @property
+    def id(self):
+        h = hashlib.new('sha1')
+        h.update(("%s%s" % (self.header, self.text)).encode('utf8'))
+
+        return h.hexdigest()
 
     @property
     def header(self):
-        return self.section('h1, h2, h3, h4, h5, h6').text().encode('utf8')
+        return self.section('h1, h2, h3, h4, h5, h6').text()
+
+    @property
+    def permalink(self):
+        return self.section('h1, h2, h3, h4, h5, h6').children('a').attr('href')
     
     @property
     def first_paragraph(self):
         raise NotImplementedError()
 
     @property
-    def paragraphs(self):
+    def text(self):
         p = self.section.filter('p')
         if p:
-            return p.text().replace("\n", ' ').encode('utf8')
+            return p.text().replace("\n", ' ')
         else:
             return "<None>"
 
@@ -169,12 +193,51 @@ class PythonTutorialCollection(Collection):
 
 if __name__ == "__main__":
     import sunburnt
+    import time
 
-    solr_interface = sunburnt.SolrInterface("http://localhost:8983/solr/")
+    solr = sunburnt.SolrInterface("http://localhost:8181/solr/spypy/")
+
+    print "DELETING ALL DOCUMENTS FROM THE INDEX IN 5 SECONDS!"
+    #time.sleep(5)
+    solr.delete_all()
 
 
-    coll = PythonTutorialCollection()
+    coll = PythonLibraryCollection()
 
     for page in coll.iterpages():
-        print page
-        print
+
+        for section in page.sections:
+            doc = {
+                'id': section.id,
+                'title': section.header,
+                #'parent': section.parent,
+                'text': section.text,
+                'permalink': section.permalink,
+            }
+
+            print "<Section %s>" % doc['id']
+            solr.add(doc)
+
+            for func in section.funcs:
+                try:
+                    fdoc = {
+                        'id': func.id,
+                        'f_name': func.name,
+                        'f_parents': func.parents,
+                        'f_fqn': func.fqn,
+                        'f_definition': func.definition,
+                        'f_signature': func.signature,
+                    }
+                    print "  <Function %s>" % fdoc['id']
+
+                    solr.add(fdoc)
+                except Exception, e:
+                    print "[!!!] <EXCEPTION: %s>" % e
+                    #time.sleep(1)
+    
+    print "Committing..."
+    solr.commit()
+
+    print "Done!"
+
+

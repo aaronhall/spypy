@@ -718,7 +718,7 @@
        of SearchComponents (see below) and supports distributed
        queries across multiple shards
     -->
-  <requestHandler name="/select" class="solr.SearchHandler">
+  <requestHandler name="/select_notused" class="solr.SearchHandler">
     <!-- default values for query parameters can be specified, these
          will be overridden by parameters in the request
       -->
@@ -790,12 +790,12 @@
        (SearchHandler) can be registered multiple times with different
        names (and different init parameters)
     -->
-  <requestHandler name="/browse" class="solr.SearchHandler">
+  <requestHandler name="/select" class="solr.SearchHandler">
      <lst name="defaults">
        <str name="echoParams">explicit</str>
 
        <!-- VelocityResponseWriter settings -->
-       <str name="wt">velocity</str>
+       <str name="wt">json</str>
 
        <str name="v.template">browse</str>
        <str name="v.layout">layout</str>
@@ -807,16 +807,17 @@
        <str name="rows">10</str>
        <str name="fl">*,score</str>
        <str name="mlt.qf">
-         text^0.5 features^1.0 name^1.2 sku^1.5 id^10.0 manu^1.1 cat^1.4
+         text^1.0 title^10.0 f_name^10 f_parents^5 f_definition^3 f_fqn^50 
        </str>
-       <str name="mlt.fl">text,features,name,sku,id,manu,cat</str>
+       <str name="mlt.fl">*,score</str> <!--fields to return for "more like this"-->
        <int name="mlt.count">3</int>
 
        <str name="qf">
-          text^0.5 features^1.0 name^1.2 sku^1.5 id^10.0 manu^1.1 cat^1.4
+         text^1.0 title^10.0 f_name^10 f_parents^5 f_definition^3 f_fqn^50 
        </str>
 
-       <str name="facet">on</str>
+       <str name="facet">off</str>
+       <!--
        <str name="facet.field">cat</str>
        <str name="facet.field">manu_exact</str>
        <str name="facet.query">ipod</str>
@@ -838,13 +839,18 @@
        <str name="f.manufacturedate_dt.facet.range.gap">+1YEAR</str>
        <str name="f.manufacturedate_dt.facet.range.other">before</str>
        <str name="f.manufacturedate_dt.facet.range.other">after</str>
+       -->
 
 
        <!-- Highlighting defaults -->
-       <str name="hl">on</str>
-       <str name="hl.fl">text features name</str>
+       <!--
+       <str name="hl">off</str>
+       <str name="hl.fl">title text</str>
+       -->
+       <!--
        <str name="f.name.hl.fragsize">0</str>
        <str name="f.name.hl.alternateField">name</str>
+       -->
      </lst>
      <arr name="last-components">
        <str>spellcheck</str>
